@@ -50,12 +50,14 @@ void ui_loading_screen_done(void) {
  * @param disc the disc information to display
  */
 void ui_show_disc_info(const cddb_disc_t *disc) {
-    GtkWidget *disc_info_window, *main_vbox, *disc_info_grid, *disc_title_label, *disc_artist_label, *track_info_frame, *track_info_scrollable, *track_info_grid, *track_title_label;
+    GtkWidget *disc_info_window, *main_vbox, *disc_info_grid, *disc_title_label, *disc_artist_label, *track_info_frame, *track_info_scrollable, *track_info_grid, *track_title_label, *button_box, *rip_button;
     int i, track_count, track_count_width;
     char *track_title_label_text_format;
     char *track_title_label_text;
 
     track_count = cddb_disc_get_track_count(disc);
+
+    /* the overall window */
 
     disc_info_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(disc_info_window), "Disc Info");
@@ -64,6 +66,8 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     main_vbox = gtk_vbox_new(TRUE, 0);
     gtk_box_set_homogeneous(GTK_BOX(main_vbox), FALSE);
     gtk_container_add(GTK_CONTAINER(disc_info_window), main_vbox);
+
+    /* all-disc info */
 
     disc_info_grid = gtk_grid_new();
     gtk_box_pack_start(GTK_BOX(main_vbox), disc_info_grid, FALSE, FALSE, 0);
@@ -79,6 +83,8 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
 
     disc_artist_entry = gtk_entry_new();
     gtk_grid_attach_next_to(GTK_GRID(disc_info_grid), disc_artist_entry, disc_artist_label, GTK_POS_RIGHT, 1, 1);
+
+    /* per-track information */
 
     track_info_frame = gtk_frame_new("Track Information");
     gtk_box_pack_start(GTK_BOX(main_vbox), track_info_frame, TRUE, TRUE, 0);
@@ -110,6 +116,14 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     }
 
     free(track_title_label_text_format);
+
+    /* buttons at the bottom */
+
+    button_box = gtk_hbutton_box_new();
+    gtk_box_pack_start(GTK_BOX(main_vbox), button_box, FALSE, FALSE, 0);
+
+    rip_button = gtk_button_new_with_label("Rip");
+    gtk_box_pack_start(GTK_BOX(button_box), rip_button, FALSE, FALSE, 0);
 
     gtk_widget_show_all(disc_info_window);
 }
