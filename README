@@ -1,0 +1,9 @@
+Welcome to Giles, the CD ripper.  This is a simple Gtk-based CD ripper that
+requires few dependencies.
+
+Although it's not all in place yet, you will eventually be able to install Giles
+by using the standard installation process:
+
+./configure
+make
+make install
