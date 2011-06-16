@@ -52,8 +52,10 @@ void ui_loading_screen_done(void) {
 void ui_show_disc_info(const cddb_disc_t *disc) {
     GtkWidget *disc_info_window, *main_vbox, *disc_info_grid, *disc_title_label, *disc_artist_label, *track_info_frame, *track_info_scrollable, *track_info_grid, *track_title_label, *button_box, *rip_button;
     int i, track_count, track_count_width;
+    cddb_track_t *track;
     char *track_title_label_text_format;
     char *track_title_label_text;
+    const char *track_title;
 
     track_count = cddb_disc_get_track_count(disc);
 
@@ -76,12 +78,14 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     gtk_grid_attach(GTK_GRID(disc_info_grid), disc_title_label, 0, 0, 1, 1);
 
     disc_title_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(disc_title_entry), cddb_disc_get_title(disc));
     gtk_grid_attach_next_to(GTK_GRID(disc_info_grid), disc_title_entry, disc_title_label, GTK_POS_RIGHT, 1, 1);
 
     disc_artist_label = gtk_label_new("Disc Artist:");
     gtk_grid_attach(GTK_GRID(disc_info_grid), disc_artist_label, 0, 1, 1, 1);
 
     disc_artist_entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(disc_artist_entry), cddb_disc_get_artist(disc));
     gtk_grid_attach_next_to(GTK_GRID(disc_info_grid), disc_artist_entry, disc_artist_label, GTK_POS_RIGHT, 1, 1);
 
     /* per-track information */
@@ -108,10 +112,13 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     track_title_entries = malloc(track_count * sizeof(GtkWidget *));
 
     for (i = 0; i < track_count; i++) {
-        asprintf(&track_title_label_text, track_title_label_text_format, i);
+        track = cddb_disc_get_track(disc, i);
+        track_title = cddb_track_get_title(track);
+        asprintf(&track_title_label_text, track_title_label_text_format, i + 1);
         track_title_label = gtk_label_new(track_title_label_text);
         gtk_grid_attach(GTK_GRID(track_info_grid), track_title_label, 0, i, 1, 1);
         track_title_entries[i] = gtk_entry_new();
+        gtk_entry_set_text(GTK_ENTRY(track_title_entries[i]), track_title);
         gtk_grid_attach_next_to(GTK_GRID(track_info_grid), track_title_entries[i], track_title_label, GTK_POS_RIGHT, 1, 1);
     }
 
