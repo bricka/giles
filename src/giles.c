@@ -33,6 +33,8 @@ int main(int argc, char **argv) {
         case giles_cddb_err_no_match:
             fputs("Could not find a match for the CD in the CDDB database.\n", stderr);
             break;
+        default:
+            break;
     }
 
     cdio_destroy(p_cdio);

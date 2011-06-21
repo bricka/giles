@@ -1,7 +1,7 @@
 #include "giles.h"
 #include "cddb.h"
 
-static int query_matches(cddb_disc_t *disc);
+#include <cdio/cdio.h>
 
 /**
  * Given a CDIO device, calculates the necessary information about the device
