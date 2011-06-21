@@ -9,7 +9,7 @@
 #include "misc.h"
 #include "rip.h"
 
-static void handle_rip_button_clicked(GtkButton *button, void *data);
+static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc);
 
 static GtkWidget *loading_screen = NULL;
 static GtkWidget *disc_title_entry = NULL;
@@ -35,6 +35,7 @@ void ui_loading_screen(void) {
 
     gtk_container_add(GTK_CONTAINER(content_area), label);
     gtk_window_set_position(GTK_WINDOW(loading_screen), GTK_WIN_POS_CENTER);
+    gtk_window_set_modal(GTK_WINDOW(loading_screen), 1);
     gtk_widget_show_all(loading_screen);
 
     pthread_create(&loading_screen_thread, NULL, loading_screen_thread_func, NULL);
@@ -156,8 +157,16 @@ static void *loading_screen_thread_func(void *arg) {
     return NULL;
 }
 
-static void handle_rip_button_clicked(GtkButton *button, void *data) {
-    cddb_disc_t *disc = (cddb_disc_t *) data;
+/**
+ * The function executed when the Rip button is clicked.
+ *
+ * @param button the button that was clicked
+ * @param disc the CDDB disc that we are using
+ */
+static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
     cddb_track_t *track = cddb_disc_get_track_first(disc);
-    rip_track_from_disc(disc, track);
+
+    do {
+        rip_track_from_disc(disc, track);
+    } while ((track = cddb_disc_get_track_next(disc)) != NULL);
 }
