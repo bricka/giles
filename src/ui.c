@@ -15,7 +15,9 @@ static GtkWidget *loading_screen = NULL;
 static GtkWidget *disc_title_entry = NULL;
 static GtkWidget *disc_artist_entry = NULL;
 static pthread_t loading_screen_thread;
+static GtkWidget *disc_info_window = NULL;
 static GtkWidget **track_title_entries = NULL;
+static GtkWidget **track_do_rip_check_buttons = NULL;
 
 static void *loading_screen_thread_func(void *);
 
@@ -56,7 +58,7 @@ void ui_loading_screen_done(void) {
  * @param disc the disc information to display
  */
 void ui_show_disc_info(const cddb_disc_t *disc) {
-    GtkWidget *disc_info_window, *main_vbox, *disc_info_grid, *disc_title_label,
+    GtkWidget *main_vbox, *disc_info_grid, *disc_title_label,
               *disc_artist_label, *track_info_frame, *track_info_scrollable,
               *track_info_grid, *track_title_label, *button_box, *rip_button;
     int i, track_count, track_count_width;
@@ -118,6 +120,7 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     asprintf(&track_title_label_text_format, "Track %%%dd:", track_count_width);
 
     track_title_entries = malloc(track_count * sizeof(GtkWidget *));
+    track_do_rip_check_buttons = malloc(track_count * sizeof(GtkWidget *));
 
     for (i = 0; i < track_count; i++) {
         track = cddb_disc_get_track(disc, i);
@@ -125,9 +128,13 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
         asprintf(&track_title_label_text, track_title_label_text_format, i + 1);
         track_title_label = gtk_label_new(track_title_label_text);
         gtk_grid_attach(GTK_GRID(track_info_grid), track_title_label, 0, i, 1, 1);
+
         track_title_entries[i] = gtk_entry_new();
         gtk_entry_set_text(GTK_ENTRY(track_title_entries[i]), track_title);
         gtk_grid_attach_next_to(GTK_GRID(track_info_grid), track_title_entries[i], track_title_label, GTK_POS_RIGHT, 1, 1);
+
+        track_do_rip_check_buttons[i] = gtk_check_button_new();
+        gtk_grid_attach_next_to(GTK_GRID(track_info_grid), track_do_rip_check_buttons[i], track_title_entries[i], GTK_POS_RIGHT, 1, 1);
     }
 
     free(track_title_label_text_format);
@@ -164,9 +171,30 @@ static void *loading_screen_thread_func(void *arg) {
  * @param disc the CDDB disc that we are using
  */
 static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
-    cddb_track_t *track = cddb_disc_get_track_first(disc);
+    GtkWidget *ripping_progress_dialog, *ripping_progress_bar, *check_button;
+    int track_count = cddb_disc_get_track_count(disc);
+    int *tracks_to_rip = NULL;
+    int num_tracks = 0;
+    int i;
 
-    do {
-        rip_track_from_disc(disc, track);
-    } while ((track = cddb_disc_get_track_next(disc)) != NULL);
+    ripping_progress_dialog = gtk_dialog_new_with_buttons("Ripping CD", GTK_WINDOW(disc_info_window), GTK_DIALOG_MODAL, GTK_STOCK_CANCEL, NULL);
+
+    ripping_progress_bar = gtk_progress_bar_new();
+    gtk_progress_bar_pulse(GTK_PROGRESS_BAR(ripping_progress_bar));
+
+    gtk_widget_show_all(ripping_progress_dialog);
+
+    tracks_to_rip = malloc(track_count * sizeof(int));
+
+    for (i = 0; i < track_count; i++) {
+        check_button = track_do_rip_check_buttons[i];
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button))) {
+            tracks_to_rip[num_tracks] = i;
+            num_tracks++;
+        }
+    }
+
+    if (num_tracks > 0) {
+        rip_tracks_from_disc_thread(ripping_progress_bar, disc, tracks_to_rip, num_tracks);
+    }
 }

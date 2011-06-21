@@ -6,6 +6,9 @@ giles: giles.o cddb.o ui.o rip.o misc.o
 ui.o: ui.c
 	$(CC) $(CFLAGS) -Wall `pkg-config --cflags gtk+-3.0` -c ui.c
 
+rip.o: rip.c
+	$(CC) $(CFLAGS) -Wall `pkg-config --cflags gtk+-3.0` -c rip.c
+
 clean:
 	rm -rf giles *.o
 
