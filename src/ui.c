@@ -50,7 +50,9 @@ void ui_loading_screen_done(void) {
  * @param disc the disc information to display
  */
 void ui_show_disc_info(const cddb_disc_t *disc) {
-    GtkWidget *disc_info_window, *main_vbox, *disc_info_grid, *disc_title_label, *disc_artist_label, *track_info_frame, *track_info_scrollable, *track_info_grid, *track_title_label, *button_box, *rip_button;
+    GtkWidget *disc_info_window, *main_vbox, *disc_info_grid, *disc_title_label,
+              *disc_artist_label, *track_info_frame, *track_info_scrollable,
+              *track_info_grid, *track_title_label, *button_box, *rip_button;
     int i, track_count, track_count_width;
     cddb_track_t *track;
     char *track_title_label_text_format;

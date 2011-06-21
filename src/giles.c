@@ -26,6 +26,15 @@ int main(int argc, char **argv) {
     
     enum giles_cddb_err get_cddb_info_err = get_cddb_info_for_device(p_cdio, disc);
 
+    switch (get_cddb_info_err) {
+        case giles_cddb_err_no_conn:
+            fputs("Could not connect to CDDB database.\n", stderr);
+            break;
+        case giles_cddb_err_no_match:
+            fputs("Could not find a match for the CD in the CDDB database.\n", stderr);
+            break;
+    }
+
     cdio_destroy(p_cdio);
 
     ui_loading_screen_done();
