@@ -4,7 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "giles.h"
 #include "ui.h"
+#include "misc.h"
+#include "rip.h"
+
+static void handle_rip_button_clicked(GtkButton *button, void *data);
 
 static GtkWidget *loading_screen = NULL;
 static GtkWidget *disc_title_entry = NULL;
@@ -132,6 +137,7 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     gtk_box_pack_start(GTK_BOX(main_vbox), button_box, FALSE, FALSE, 0);
 
     rip_button = gtk_button_new_with_label("Rip");
+    g_signal_connect(rip_button, "clicked", G_CALLBACK(handle_rip_button_clicked), (void *) disc);
     gtk_box_pack_start(GTK_BOX(button_box), rip_button, FALSE, FALSE, 0);
 
     gtk_widget_show_all(disc_info_window);
@@ -148,4 +154,10 @@ static void *loading_screen_thread_func(void *arg) {
     gtk_main();
 
     return NULL;
+}
+
+static void handle_rip_button_clicked(GtkButton *button, void *data) {
+    cddb_disc_t *disc = (cddb_disc_t *) data;
+    cddb_track_t *track = cddb_disc_get_track_first(disc);
+    rip_track_from_disc(disc, track);
 }

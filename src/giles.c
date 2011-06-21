@@ -1,4 +1,3 @@
-#include <gtk/gtk.h>
 #include <cdio/cdio.h>
 #include <cddb/cddb.h>
 
