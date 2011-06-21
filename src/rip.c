@@ -39,6 +39,8 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     const cddb_disc_t *disc = args->disc;
     int *tracks = args->tracks;
     int num_tracks = args->num_tracks;
+    double frac_completed = 0.0;
+    char *progress_bar_text = malloc(BUFSIZ);
 
     int track_count = cddb_disc_get_track_count(disc);
     int track_count_width = 0;
@@ -59,6 +61,10 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     } else {
         expanded_directory = directory;
     }
+
+    gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
+    snprintf(progress_bar_text, BUFSIZ, "0 of %d tracks ripped", num_tracks);
+    gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
     for (i = 0; i < num_tracks; i++) {
         cddb_track_t *track = cddb_disc_get_track(disc, tracks[i]);
@@ -85,12 +91,20 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
 
         if (child_pid < 0) {
             perror("giles: Failed to fork to execute cdparanoia");
+            return NULL;
         } else if (child_pid == 0) {
             execlp("cdparanoia", "cdparanoia", track_num_str, wav_filename, NULL);
             perror("giles: Failed to execute cdparanoia");
+            return NULL;
         } else {
             waitpid(child_pid, NULL, 0);
         }
+
+        frac_completed = (double) (i+1) / (double) num_tracks;
+        DPRINTF ("Fraction of work completed: %f\n", frac_completed);
+        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
+        snprintf(progress_bar_text, BUFSIZ, "%d of %d tracks ripped", i+1, num_tracks);
+        gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
     }
 
     return NULL;

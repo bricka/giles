@@ -171,7 +171,7 @@ static void *loading_screen_thread_func(void *arg) {
  * @param disc the CDDB disc that we are using
  */
 static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
-    GtkWidget *ripping_progress_dialog, *ripping_progress_bar, *check_button;
+    GtkWidget *ripping_progress_dialog, *content_area, *ripping_progress_bar, *check_button;
     int track_count = cddb_disc_get_track_count(disc);
     int *tracks_to_rip = NULL;
     int num_tracks = 0;
@@ -179,8 +179,11 @@ static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
 
     ripping_progress_dialog = gtk_dialog_new_with_buttons("Ripping CD", GTK_WINDOW(disc_info_window), GTK_DIALOG_MODAL, GTK_STOCK_CANCEL, NULL);
 
+    content_area = gtk_dialog_get_content_area(GTK_DIALOG(ripping_progress_dialog));
+
     ripping_progress_bar = gtk_progress_bar_new();
-    gtk_progress_bar_pulse(GTK_PROGRESS_BAR(ripping_progress_bar));
+    gtk_container_add(GTK_CONTAINER(content_area), ripping_progress_bar);
+    gtk_progress_bar_set_show_text(GTK_PROGRESS_BAR(ripping_progress_bar), 1);
 
     gtk_widget_show_all(ripping_progress_dialog);
 
