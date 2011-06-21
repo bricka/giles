@@ -14,19 +14,25 @@
 
 struct rip_tracks_from_disc_thread_arguments {
     GtkWidget *progress_bar;
-    const cddb_disc_t *disc;
+    int track_count_on_disc;
+    const char *disc_title;
+    const char *disc_artist;
     int *tracks;
     int num_tracks;
+    GtkWidget **track_title_entries;
 };
 
 static void *rip_tracks_from_disc_thread_func(void *data);
 
-void rip_tracks_from_disc_thread(GtkWidget *progress_bar, const cddb_disc_t *disc, int *tracks, int num_tracks) {
+void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, int num_tracks, GtkWidget **track_title_entries) {
     struct rip_tracks_from_disc_thread_arguments *args = malloc(sizeof(struct rip_tracks_from_disc_thread_arguments));
     args->progress_bar = progress_bar;
-    args->disc = disc;
+    args->track_count_on_disc = track_count_on_disc;
+    args->disc_title = disc_title;
+    args->disc_artist = disc_artist;
     args->tracks = tracks;
     args->num_tracks = num_tracks;
+    args->track_title_entries = track_title_entries;
 
     pthread_t ripping_thread;
 
@@ -36,13 +42,15 @@ void rip_tracks_from_disc_thread(GtkWidget *progress_bar, const cddb_disc_t *dis
 static void *rip_tracks_from_disc_thread_func(void *data) {
     struct rip_tracks_from_disc_thread_arguments *args = (struct rip_tracks_from_disc_thread_arguments *) data;
     GtkWidget *progress_bar = args->progress_bar;
-    const cddb_disc_t *disc = args->disc;
+    int track_count = args->track_count_on_disc;
+    const char *disc_title = args->disc_title;
+    const char *artist = args->disc_artist;
     int *tracks = args->tracks;
     int num_tracks = args->num_tracks;
+    GtkWidget **track_title_entries = args->track_title_entries;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
 
-    int track_count = cddb_disc_get_track_count(disc);
     int track_count_width = 0;
     char *expanded_directory;
 
@@ -67,11 +75,8 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
     for (i = 0; i < num_tracks; i++) {
-        cddb_track_t *track = cddb_disc_get_track(disc, tracks[i]);
-        const char *disc_title = cddb_disc_get_title(disc);
-        const char *artist = cddb_track_get_artist(track);
-        const char *track_title = cddb_track_get_title(track);
-        int track_num = cddb_track_get_number(track);
+        const char *track_title = gtk_entry_get_text(GTK_ENTRY(track_title_entries[i]));
+        int track_num = tracks[i] + 1; // 0-indexed in the array
         char *track_num_str;
         char *dirname_str;
         char *wav_filename_format;
