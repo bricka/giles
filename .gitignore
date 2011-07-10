@@ -1,8 +1,9 @@
 a.out
 *.o
-src/giles
+/src/giles
 configure
-config.log
+/config.log
+/config.status
 Makefile
 Makefile.in
 /depcomp
@@ -11,3 +12,4 @@ Makefile.in
 /aclocal.m4
 /autom4te.cache/
 /compile
+/src/.deps

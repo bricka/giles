@@ -74,6 +74,7 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     disc_info_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(disc_info_window), "Disc Info");
     gtk_container_set_border_width(GTK_CONTAINER(disc_info_window), 10);
+    g_signal_connect(disc_info_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
     main_vbox = gtk_vbox_new(TRUE, 0);
     gtk_box_set_homogeneous(GTK_BOX(main_vbox), FALSE);
@@ -88,14 +89,18 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
     gtk_grid_attach(GTK_GRID(disc_info_grid), disc_title_label, 0, 0, 1, 1);
 
     disc_title_entry = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(disc_title_entry), cddb_disc_get_title(disc));
+    if (cddb_disc_get_title(disc) != NULL) {
+        gtk_entry_set_text(GTK_ENTRY(disc_title_entry), cddb_disc_get_title(disc));
+    }
     gtk_grid_attach_next_to(GTK_GRID(disc_info_grid), disc_title_entry, disc_title_label, GTK_POS_RIGHT, 1, 1);
 
     disc_artist_label = gtk_label_new("Disc Artist:");
     gtk_grid_attach(GTK_GRID(disc_info_grid), disc_artist_label, 0, 1, 1, 1);
 
     disc_artist_entry = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(disc_artist_entry), cddb_disc_get_artist(disc));
+    if (cddb_disc_get_artist(disc) != NULL) {
+        gtk_entry_set_text(GTK_ENTRY(disc_artist_entry), cddb_disc_get_artist(disc));
+    }
     gtk_grid_attach_next_to(GTK_GRID(disc_info_grid), disc_artist_entry, disc_artist_label, GTK_POS_RIGHT, 1, 1);
 
     /* per-track information */
@@ -130,7 +135,9 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
         gtk_grid_attach(GTK_GRID(track_info_grid), track_title_label, 0, i, 1, 1);
 
         track_title_entries[i] = gtk_entry_new();
-        gtk_entry_set_text(GTK_ENTRY(track_title_entries[i]), track_title);
+        if (track_title != NULL) {
+            gtk_entry_set_text(GTK_ENTRY(track_title_entries[i]), track_title);
+        }
         gtk_grid_attach_next_to(GTK_GRID(track_info_grid), track_title_entries[i], track_title_label, GTK_POS_RIGHT, 1, 1);
 
         track_do_rip_check_buttons[i] = gtk_check_button_new();
