@@ -1,0 +1,7 @@
+giles is installed by using the relatively standard process:
+
+./configure
+make
+make install
+
+To do a system install, make install will require root privileges.

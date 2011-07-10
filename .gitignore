@@ -1,3 +1,13 @@
 a.out
 *.o
 src/giles
+configure
+config.log
+Makefile
+Makefile.in
+/depcomp
+/install-sh
+/missing
+/aclocal.m4
+/autom4te.cache/
+/compile
