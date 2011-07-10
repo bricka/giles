@@ -50,6 +50,7 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     GtkWidget **track_title_entries = args->track_title_entries;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
+    char *wav_filename_format;
 
     int track_count_width = 0;
     char *expanded_directory;
@@ -70,6 +71,8 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         expanded_directory = directory;
     }
 
+    asprintf(&wav_filename_format, "%s/%%s/%%s/%%0%dd - %%s.wav", expanded_directory, track_count_width);
+
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
     snprintf(progress_bar_text, BUFSIZ, "0 of %d tracks ripped", num_tracks);
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
@@ -79,13 +82,11 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         int track_num = tracks[i] + 1; // 0-indexed in the array
         char *track_num_str;
         char *dirname_str;
-        char *wav_filename_format;
         char *wav_filename;
         pid_t child_pid;
 
         asprintf(&track_num_str, "%d", track_num);
 
-        asprintf(&wav_filename_format, "%s/%%s/%%s/%%0%dd - %%s.wav", expanded_directory, track_count_width);
         asprintf(&wav_filename, wav_filename_format, artist, disc_title, track_num, track_title);
 
         dirname_str = strdup(wav_filename);
@@ -110,7 +111,12 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
         snprintf(progress_bar_text, BUFSIZ, "%d of %d tracks ripped", i+1, num_tracks);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
+
+        free(track_num_str);
+        free(wav_filename);
     }
+
+    free(wav_filename_format);
 
     return NULL;
 }
