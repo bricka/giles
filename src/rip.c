@@ -18,27 +18,53 @@ struct rip_tracks_from_disc_thread_arguments {
     const char *disc_title;
     const char *disc_artist;
     int *tracks;
+    char **track_titles;
     int num_tracks;
-    GtkWidget **track_title_entries;
 };
 
 static void *rip_tracks_from_disc_thread_func(void *data);
 
-void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, int num_tracks, GtkWidget **track_title_entries) {
+/**
+ * A function that launches a thread that rips the requested tracks from the
+ * disc.  Note that the function will launch the thread but will not wait for it
+ * to finish before returning.
+ *
+ * @param progress_bar a GtkProgressBar that the ripping thread should update as
+ *      it rips
+ * @param track_count_on_disc the total number of tracks on the disc (not the
+ *      number that the user has selected for ripping)
+ * @param disc_title the title of the disc
+ * @param disc_artist the artist of the disc
+ * @param tracks an array of track numbers to rip, where the first track of the
+ *      disc is track 0
+ * @param track_titles an array of track titles corresponding to the tracks
+ *      array
+ * @param num_tracks the total number of tracks to rip (length of tracks and
+ *      track_titles arrays)
+ */
+void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, int num_tracks) {
     struct rip_tracks_from_disc_thread_arguments *args = malloc(sizeof(struct rip_tracks_from_disc_thread_arguments));
     args->progress_bar = progress_bar;
     args->track_count_on_disc = track_count_on_disc;
     args->disc_title = disc_title;
     args->disc_artist = disc_artist;
     args->tracks = tracks;
+    args->track_titles = track_titles;
     args->num_tracks = num_tracks;
-    args->track_title_entries = track_title_entries;
 
     pthread_t ripping_thread;
 
     pthread_create(&ripping_thread, NULL, rip_tracks_from_disc_thread_func, args);
 }
 
+/**
+ * An entry function for a thread that rips tracks from a disc.
+ *
+ * @param data a pointer to a struct rip_tracks_from_disc_thread_arguments that
+ *      contains the parameters for the thread
+ *
+ * @return NULL
+ */
 static void *rip_tracks_from_disc_thread_func(void *data) {
     struct rip_tracks_from_disc_thread_arguments *args = (struct rip_tracks_from_disc_thread_arguments *) data;
     GtkWidget *progress_bar = args->progress_bar;
@@ -47,7 +73,7 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     const char *artist = args->disc_artist;
     int *tracks = args->tracks;
     int num_tracks = args->num_tracks;
-    GtkWidget **track_title_entries = args->track_title_entries;
+    char **track_titles = args->track_titles;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
     char *wav_filename_format;
@@ -78,7 +104,6 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
     for (i = 0; i < num_tracks; i++) {
-        const char *track_title = gtk_entry_get_text(GTK_ENTRY(track_title_entries[i]));
         int track_num = tracks[i] + 1; // 0-indexed in the array
         char *track_num_str;
         char *dirname_str;
@@ -87,7 +112,7 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
 
         asprintf(&track_num_str, "%d", track_num);
 
-        asprintf(&wav_filename, wav_filename_format, artist, disc_title, track_num, track_title);
+        asprintf(&wav_filename, wav_filename_format, artist, disc_title, track_num, track_titles[i]);
 
         dirname_str = strdup(wav_filename);
         dirname(dirname_str);

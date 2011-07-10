@@ -207,6 +207,11 @@ static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
     if (num_tracks > 0) {
         const char *disc_title = gtk_entry_get_text(GTK_ENTRY(disc_title_entry));
         const char *disc_artist = gtk_entry_get_text(GTK_ENTRY(disc_artist_entry));
-        rip_tracks_from_disc_thread(ripping_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, num_tracks, track_title_entries);
+
+        const char **track_titles = malloc(num_tracks * sizeof(char *));
+        for (i = 0; i < num_tracks; i++) {
+            track_titles[i] = gtk_entry_get_text(GTK_ENTRY(track_title_entries[i]));
+        }
+        rip_tracks_from_disc_thread(ripping_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, track_titles, num_tracks);
     }
 }
