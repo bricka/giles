@@ -3,11 +3,13 @@
 #include <cddb/cddb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "giles.h"
 #include "ui.h"
 #include "misc.h"
 #include "rip.h"
+#include "encode.h"
 
 static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc);
 
@@ -178,7 +180,7 @@ static void *loading_screen_thread_func(void *arg) {
  * @param disc the CDDB disc that we are using
  */
 static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
-    GtkWidget *ripping_progress_dialog, *content_area, *ripping_progress_bar, *check_button;
+    GtkWidget *ripping_progress_dialog, *content_area, *content_area_vbox, *ripping_progress_bar, *encoding_progress_bar, *check_button;
     int track_count = cddb_disc_get_track_count(disc);
     int *tracks_to_rip = NULL;
     int num_tracks = 0;
@@ -188,9 +190,16 @@ static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
 
     content_area = gtk_dialog_get_content_area(GTK_DIALOG(ripping_progress_dialog));
 
+    content_area_vbox = gtk_vbox_new(1, 0);
+    gtk_container_add(GTK_CONTAINER(content_area), content_area_vbox);
+
     ripping_progress_bar = gtk_progress_bar_new();
-    gtk_container_add(GTK_CONTAINER(content_area), ripping_progress_bar);
+    gtk_box_pack_start(GTK_BOX(content_area_vbox), ripping_progress_bar, 0, 0, 0);
     gtk_progress_bar_set_show_text(GTK_PROGRESS_BAR(ripping_progress_bar), 1);
+
+    encoding_progress_bar = gtk_progress_bar_new();
+    gtk_box_pack_start(GTK_BOX(content_area_vbox), encoding_progress_bar, 0, 0, 0);
+    gtk_progress_bar_set_show_text(GTK_PROGRESS_BAR(encoding_progress_bar), 1);
 
     gtk_widget_show_all(ripping_progress_dialog);
 
@@ -212,6 +221,13 @@ static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
         for (i = 0; i < num_tracks; i++) {
             track_titles[i] = gtk_entry_get_text(GTK_ENTRY(track_title_entries[i]));
         }
-        rip_tracks_from_disc_thread(ripping_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, track_titles, num_tracks);
+
+        char **wav_filenames = malloc(num_tracks * sizeof(char *));
+
+        pthread_cond_t *new_wav_cond = malloc(sizeof(pthread_cond_t));
+        pthread_cond_init(new_wav_cond, NULL);
+
+        rip_tracks_from_disc_thread(ripping_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, track_titles, wav_filenames, num_tracks, new_wav_cond);
+        encode_tracks_thread(encoding_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, track_titles, wav_filenames, num_tracks, new_wav_cond);
     }
 }

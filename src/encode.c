@@ -9,18 +9,19 @@
 #include "giles.h"
 #include "encode.h"
 
-struct encode_tracks_from_disc_thread_arguments {
+struct encode_tracks_thread_arguments {
     GtkWidget *progress_bar;
     int track_count_on_disc;
     const char *disc_title;
     const char *disc_artist;
     int *tracks;
     const char **track_titles;
-    const char **wav_filenames;
+    char **wav_filenames;
     int num_tracks;
+    pthread_cond_t *new_wav_cond;
 };
 
-static void *encode_tracks_from_disc_thread_func(void *data);
+static void *encode_tracks_thread_func(void *data);
 
 /**
  * A function that launches a thread that encodes the requested tracks from the
@@ -37,13 +38,15 @@ static void *encode_tracks_from_disc_thread_func(void *data);
  *      disc is track 0
  * @param track_titles an array of track titles corresponding to the tracks
  *      array
- * @param wav_filenames an array of the WAV filenames to convert corresponding
- *      to the above two arrays 
+ * @param wav_filenames an array in which WAV filenames that must be encoded
+ *      will be stored
  * @param num_tracks the total number of tracks to rip (length of the three
  *      above arrays)
+ * @param new_wav_cond a condition that will be signalled when there is a new
+ *      WAV file to be encoded
  */
-void encode_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, const char **wav_filenames, int num_tracks) {
-    struct encode_tracks_from_disc_thread_arguments *args = malloc(sizeof(struct encode_tracks_from_disc_thread_arguments));
+void encode_tracks_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, char **wav_filenames, int num_tracks, pthread_cond_t *new_wav_cond) {
+    struct encode_tracks_thread_arguments *args = malloc(sizeof(struct encode_tracks_thread_arguments));
     args->progress_bar = progress_bar;
     args->track_count_on_disc = track_count_on_disc;
     args->disc_title = disc_title;
@@ -52,6 +55,7 @@ void encode_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_
     args->track_titles = track_titles;
     args->wav_filenames = wav_filenames;
     args->num_tracks = num_tracks;
+    args->new_wav_cond = new_wav_cond;
 
     pthread_t encoding_thread;
     pthread_attr_t encoding_thread_attrs;
@@ -59,33 +63,38 @@ void encode_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_
     pthread_attr_init(&encoding_thread_attrs);
     pthread_attr_setdetachstate(&encoding_thread_attrs, PTHREAD_CREATE_DETACHED);
 
-    pthread_create(&encoding_thread, &encoding_thread_attrs, encode_tracks_from_disc_thread_func, args);
+    pthread_create(&encoding_thread, &encoding_thread_attrs, encode_tracks_thread_func, args);
 }
 
 /**
  * An entry function for a thread that encodes tracks from a disc.
  *
- * @param data a pointer to a struct encode_tracks_from_disc_thread_arguments that
+ * @param data a pointer to a struct encode_tracks_thread_arguments that
  *      contains the parameters for the thread
  *
  * @return NULL
  */
-static void *encode_tracks_from_disc_thread_func(void *data) {
-    struct encode_tracks_from_disc_thread_arguments *args = (struct encode_tracks_from_disc_thread_arguments *) data;
+static void *encode_tracks_thread_func(void *data) {
+    struct encode_tracks_thread_arguments *args = (struct encode_tracks_thread_arguments *) data;
     GtkWidget *progress_bar = args->progress_bar;
     int track_count = args->track_count_on_disc;
     const char *disc_title = args->disc_title;
     const char *artist = args->disc_artist;
     int *tracks = args->tracks;
     const char **track_titles = args->track_titles;
-    const char **wav_filenames = args->wav_filenames;
+    char **wav_filenames = args->wav_filenames;
     int num_tracks = args->num_tracks;
+    pthread_cond_t *new_wav_cond = args->new_wav_cond;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
     char *mp3_filename_format;
 
     int track_count_width = 0;
     char *expanded_directory;
+
+    pthread_mutex_t dummy_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+    pthread_mutex_lock(&dummy_mutex);
 
     int i;
 
@@ -110,6 +119,8 @@ static void *encode_tracks_from_disc_thread_func(void *data) {
         char *mp3_filename;
         pid_t child_pid;
 
+        pthread_cond_wait(new_wav_cond, &dummy_mutex);
+
         asprintf(&track_num_str, "%d", track_num);
 
         asprintf(&mp3_filename, mp3_filename_format, artist, disc_title, track_num, track_titles[i]);
@@ -124,7 +135,7 @@ static void *encode_tracks_from_disc_thread_func(void *data) {
             perror("giles: Failed to fork to execute lame");
             return NULL;
         } else if (child_pid == 0) {
-            execlp("lame", "lame", "-tt", track_titles[i], "-ta", artist, "-tl", disc_title, "tn", track_num_str, wav_filenames[i], mp3_filename);
+            execlp("lame", "lame", "-tt", track_titles[i], "-ta", artist, "-tl", disc_title, "tn", track_num_str, wav_filenames[i], mp3_filename, NULL);
             perror("giles: Failed to execute lame");
             return NULL;
         } else {
@@ -143,6 +154,7 @@ static void *encode_tracks_from_disc_thread_func(void *data) {
 
     free(mp3_filename_format);
 
+    pthread_mutex_unlock(&dummy_mutex);
+
     return NULL;
 }
-

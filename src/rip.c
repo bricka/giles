@@ -19,7 +19,9 @@ struct rip_tracks_from_disc_thread_arguments {
     const char *disc_artist;
     int *tracks;
     const char **track_titles;
+    char **wav_filenames;
     int num_tracks;
+    pthread_cond_t *new_wav_cond;
 };
 
 static void *rip_tracks_from_disc_thread_func(void *data);
@@ -39,10 +41,11 @@ static void *rip_tracks_from_disc_thread_func(void *data);
  *      disc is track 0
  * @param track_titles an array of track titles corresponding to the tracks
  *      array
+ * @param wav_filenames an array in which to store the WAV filenames
  * @param num_tracks the total number of tracks to rip (length of tracks and
  *      track_titles arrays)
  */
-void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, int num_tracks) {
+void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, char **wav_filenames, int num_tracks, pthread_cond_t *new_wav_cond) {
     struct rip_tracks_from_disc_thread_arguments *args = malloc(sizeof(struct rip_tracks_from_disc_thread_arguments));
     args->progress_bar = progress_bar;
     args->track_count_on_disc = track_count_on_disc;
@@ -50,7 +53,9 @@ void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_dis
     args->disc_artist = disc_artist;
     args->tracks = tracks;
     args->track_titles = track_titles;
+    args->wav_filenames = wav_filenames;
     args->num_tracks = num_tracks;
+    args->new_wav_cond = new_wav_cond;
 
     pthread_t ripping_thread;
     pthread_attr_t ripping_thread_attrs;
@@ -75,8 +80,10 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     const char *disc_title = args->disc_title;
     const char *artist = args->disc_artist;
     int *tracks = args->tracks;
+    const char **track_titles = args->track_titles;
+    char **wav_filenames = args->wav_filenames;
     int num_tracks = args->num_tracks;
-    char **track_titles = args->track_titles;
+    pthread_cond_t *new_wav_cond = args->new_wav_cond;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
     char *wav_filename_format;
@@ -140,8 +147,10 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         snprintf(progress_bar_text, BUFSIZ, "%d of %d tracks ripped", i+1, num_tracks);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
+        wav_filenames[i] = wav_filename;
+        pthread_cond_signal(new_wav_cond);
+
         free(track_num_str);
-        free(wav_filename);
     }
 
     free(wav_filename_format);
