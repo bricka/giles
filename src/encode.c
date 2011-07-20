@@ -9,15 +9,13 @@
 #include "giles.h"
 #include "encode.h"
 
+#define directory "~/music/test"
+
 struct encode_tracks_thread_arguments {
     GtkWidget *progress_bar;
-    int track_count_on_disc;
-    const char *disc_title;
-    const char *disc_artist;
-    int *tracks;
-    const char **track_titles;
-    char **wav_filenames;
     int num_tracks;
+    struct wav_to_encode **wav_list;
+    pthread_mutex_t *wav_list_mutex;
     pthread_cond_t *new_wav_cond;
 };
 
@@ -30,31 +28,17 @@ static void *encode_tracks_thread_func(void *data);
  *
  * @param progress_bar a GtkProgressBar that the encoding thread should update
  *      as it encodes
- * @param track_count_on_disc the total number of tracks on the disc (not the
- *      number that the user has selected for ripping)
- * @param disc_title the title of the disc
- * @param disc_artist the artist of the disc
- * @param tracks an array of track numbers to rip, where the first track of the
- *      disc is track 0
- * @param track_titles an array of track titles corresponding to the tracks
- *      array
- * @param wav_filenames an array in which WAV filenames that must be encoded
- *      will be stored
- * @param num_tracks the total number of tracks to rip (length of the three
- *      above arrays)
- * @param new_wav_cond a condition that will be signalled when there is a new
- *      WAV file to be encoded
+ * @param num_tracks the total number of tracks on the disc
+ * @param wav_list a list that WAV files ready for encoding will be stored in
+ * @param wav_list_mutex a mutex that must be locked before accessing wav_list
+ * @param new_wav_cond a cond that will be signalled when a new WAV is ready
  */
-void encode_tracks_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, char **wav_filenames, int num_tracks, pthread_cond_t *new_wav_cond) {
+void encode_tracks_thread(GtkWidget *progress_bar, int num_tracks, struct wav_to_encode **wav_list, pthread_mutex_t *wav_list_mutex, pthread_cond_t *new_wav_cond) {
     struct encode_tracks_thread_arguments *args = malloc(sizeof(struct encode_tracks_thread_arguments));
     args->progress_bar = progress_bar;
-    args->track_count_on_disc = track_count_on_disc;
-    args->disc_title = disc_title;
-    args->disc_artist = disc_artist;
-    args->tracks = tracks;
-    args->track_titles = track_titles;
-    args->wav_filenames = wav_filenames;
     args->num_tracks = num_tracks;
+    args->wav_list = wav_list;
+    args->wav_list_mutex = wav_list_mutex;
     args->new_wav_cond = new_wav_cond;
 
     pthread_t encoding_thread;
@@ -77,53 +61,53 @@ void encode_tracks_thread(GtkWidget *progress_bar, int track_count_on_disc, cons
 static void *encode_tracks_thread_func(void *data) {
     struct encode_tracks_thread_arguments *args = (struct encode_tracks_thread_arguments *) data;
     GtkWidget *progress_bar = args->progress_bar;
-    int track_count = args->track_count_on_disc;
-    const char *disc_title = args->disc_title;
-    const char *artist = args->disc_artist;
-    int *tracks = args->tracks;
-    const char **track_titles = args->track_titles;
-    char **wav_filenames = args->wav_filenames;
     int num_tracks = args->num_tracks;
+    struct wav_to_encode **wav_list = args->wav_list;
+    pthread_mutex_t *wav_list_mutex = args->wav_list_mutex;
     pthread_cond_t *new_wav_cond = args->new_wav_cond;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
     char *mp3_filename_format;
 
-    int track_count_width = 0;
     char *expanded_directory;
 
-    pthread_mutex_t dummy_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-    pthread_mutex_lock(&dummy_mutex);
+    if ((directory[0] == '~') && (directory[1] == '/')) {
+        asprintf(&expanded_directory, "%s/%s", getenv("HOME"), directory + 1);
+    } else {
+        expanded_directory = directory;
+    }
 
     int i;
 
-    if (track_count < 10) {
-        track_count_width = 1;
-    } else if (track_count < 100) {
-        track_count_width = 2;
-    } else {
-        track_count_width = 3;
-    }
-
-    asprintf(&mp3_filename_format, "%s/%%s/%%s/%%0%dd - %%s.mp3", expanded_directory, track_count_width);
+    asprintf(&mp3_filename_format, "%s/%%s/%%s/%%s - %%s.mp3", expanded_directory);
 
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
     snprintf(progress_bar_text, BUFSIZ, "0 of %d tracks encoded", num_tracks);
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
-    for (i = 0; i < num_tracks; i++) {
-        int track_num = tracks[i] + 1; // 0-indexed in the array
-        char *track_num_str;
+    struct wav_to_encode *encode_me;
+
+    for (i = 0; ; i++) {
+        pthread_mutex_lock(wav_list_mutex);
+
+        if (wav_list[i] == NULL) {
+            pthread_cond_wait(new_wav_cond, wav_list_mutex);
+        }
+
+        encode_me = wav_list[i];
+
+        pthread_mutex_unlock(wav_list_mutex);
+
+        if (encode_me->done) {
+            free(encode_me);
+            break;
+        }
+
         char *dirname_str;
         char *mp3_filename;
         pid_t child_pid;
 
-        pthread_cond_wait(new_wav_cond, &dummy_mutex);
-
-        asprintf(&track_num_str, "%d", track_num);
-
-        asprintf(&mp3_filename, mp3_filename_format, artist, disc_title, track_num, track_titles[i]);
+        asprintf(&mp3_filename, mp3_filename_format, encode_me->artist, encode_me->album, encode_me->track_num, encode_me->track_title);
 
         dirname_str = strdup(mp3_filename);
         dirname(dirname_str);
@@ -135,7 +119,7 @@ static void *encode_tracks_thread_func(void *data) {
             perror("giles: Failed to fork to execute lame");
             return NULL;
         } else if (child_pid == 0) {
-            execlp("lame", "lame", "-tt", track_titles[i], "-ta", artist, "-tl", disc_title, "tn", track_num_str, wav_filenames[i], mp3_filename, NULL);
+            execlp("lame", "lame", "--tt", encode_me->track_title, "--ta", encode_me->artist, "--tl", encode_me->album, "--tn", encode_me->track_num, encode_me->wav_filename, mp3_filename, NULL);
             perror("giles: Failed to execute lame");
             return NULL;
         } else {
@@ -148,13 +132,11 @@ static void *encode_tracks_thread_func(void *data) {
         snprintf(progress_bar_text, BUFSIZ, "%d of %d tracks encoded", i+1, num_tracks);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
-        free(track_num_str);
         free(mp3_filename);
+        free(encode_me);
     }
 
     free(mp3_filename_format);
-
-    pthread_mutex_unlock(&dummy_mutex);
 
     return NULL;
 }

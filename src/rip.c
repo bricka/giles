@@ -19,8 +19,9 @@ struct rip_tracks_from_disc_thread_arguments {
     const char *disc_artist;
     int *tracks;
     const char **track_titles;
-    char **wav_filenames;
     int num_tracks;
+    struct wav_to_encode **wav_list;
+    pthread_mutex_t *wav_list_mutex;
     pthread_cond_t *new_wav_cond;
 };
 
@@ -41,11 +42,13 @@ static void *rip_tracks_from_disc_thread_func(void *data);
  *      disc is track 0
  * @param track_titles an array of track titles corresponding to the tracks
  *      array
- * @param wav_filenames an array in which to store the WAV filenames
  * @param num_tracks the total number of tracks to rip (length of tracks and
  *      track_titles arrays)
+ * @param wav_list an array in which to store the information on encoding the WAVs
+ * @param wav_list_mutex a mutex to lock before accessing the wav_list
+ * @param new_wav_cond a mutex to be signalled when a new WAV is ready for encoding
  */
-void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, char **wav_filenames, int num_tracks, pthread_cond_t *new_wav_cond) {
+void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_disc, const char *disc_title, const char *disc_artist, int *tracks, const char **track_titles, int num_tracks, struct wav_to_encode **wav_list, pthread_mutex_t *wav_list_mutex, pthread_cond_t *new_wav_cond) {
     struct rip_tracks_from_disc_thread_arguments *args = malloc(sizeof(struct rip_tracks_from_disc_thread_arguments));
     args->progress_bar = progress_bar;
     args->track_count_on_disc = track_count_on_disc;
@@ -53,8 +56,9 @@ void rip_tracks_from_disc_thread(GtkWidget *progress_bar, int track_count_on_dis
     args->disc_artist = disc_artist;
     args->tracks = tracks;
     args->track_titles = track_titles;
-    args->wav_filenames = wav_filenames;
     args->num_tracks = num_tracks;
+    args->wav_list = wav_list;
+    args->wav_list_mutex = wav_list_mutex;
     args->new_wav_cond = new_wav_cond;
 
     pthread_t ripping_thread;
@@ -81,11 +85,13 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     const char *artist = args->disc_artist;
     int *tracks = args->tracks;
     const char **track_titles = args->track_titles;
-    char **wav_filenames = args->wav_filenames;
     int num_tracks = args->num_tracks;
+    struct wav_to_encode **wav_list = args->wav_list;
+    pthread_mutex_t *wav_list_mutex = args->wav_list_mutex;
     pthread_cond_t *new_wav_cond = args->new_wav_cond;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
+    char *track_num_str_format;
     char *wav_filename_format;
 
     int track_count_width = 0;
@@ -107,7 +113,9 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         expanded_directory = directory;
     }
 
-    asprintf(&wav_filename_format, "%s/%%s/%%s/%%0%dd - %%s.wav", expanded_directory, track_count_width);
+    asprintf(&track_num_str_format, "%%0%dd", track_count_width);
+
+    asprintf(&wav_filename_format, "%s/%%s/%%s/%%s - %%s.wav", expanded_directory);
 
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
     snprintf(progress_bar_text, BUFSIZ, "0 of %d tracks ripped", num_tracks);
@@ -120,9 +128,8 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         char *wav_filename;
         pid_t child_pid;
 
-        asprintf(&track_num_str, "%d", track_num);
-
-        asprintf(&wav_filename, wav_filename_format, artist, disc_title, track_num, track_titles[i]);
+        asprintf(&track_num_str, track_num_str_format, track_num);
+        asprintf(&wav_filename, wav_filename_format, artist, disc_title, track_num_str, track_titles[i]);
 
         dirname_str = strdup(wav_filename);
         dirname(dirname_str);
@@ -147,11 +154,32 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         snprintf(progress_bar_text, BUFSIZ, "%d of %d tracks ripped", i+1, num_tracks);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
-        wav_filenames[i] = wav_filename;
+        pthread_mutex_lock(wav_list_mutex);
+
+        wav_list[i] = malloc(sizeof(struct wav_to_encode));
+        wav_list[i]->done = 0;
+        strcpy(wav_list[i]->wav_filename, wav_filename);
+        strcpy(wav_list[i]->artist, artist);
+        strcpy(wav_list[i]->album, disc_title);
+        strcpy(wav_list[i]->track_num, track_num_str);
+        strcpy(wav_list[i]->track_title, track_titles[i]);
+
+        pthread_mutex_unlock(wav_list_mutex);
+
         pthread_cond_signal(new_wav_cond);
 
         free(track_num_str);
+        free(wav_filename);
     }
+
+    pthread_mutex_lock(wav_list_mutex);
+
+    wav_list[i] = malloc(sizeof(struct wav_to_encode));
+    wav_list[i]->done = 1;
+
+    pthread_mutex_unlock(wav_list_mutex);
+
+    pthread_cond_signal(new_wav_cond);
 
     free(wav_filename_format);
 

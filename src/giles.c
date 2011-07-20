@@ -1,5 +1,6 @@
 #include <cdio/cdio.h>
 #include <cddb/cddb.h>
+#include <gtk/gtk.h>
 
 #include "giles.h"
 #include "ui.h"

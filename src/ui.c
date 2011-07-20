@@ -222,12 +222,15 @@ static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
             track_titles[i] = gtk_entry_get_text(GTK_ENTRY(track_title_entries[i]));
         }
 
-        char **wav_filenames = malloc(num_tracks * sizeof(char *));
+        struct wav_to_encode **wav_list = calloc(num_tracks + 1, sizeof(struct wav_to_encode *));
+
+        pthread_mutex_t *wav_list_mutex = malloc(sizeof(pthread_mutex_t));
+        pthread_mutex_init(wav_list_mutex, NULL);
 
         pthread_cond_t *new_wav_cond = malloc(sizeof(pthread_cond_t));
         pthread_cond_init(new_wav_cond, NULL);
 
-        rip_tracks_from_disc_thread(ripping_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, track_titles, wav_filenames, num_tracks, new_wav_cond);
-        encode_tracks_thread(encoding_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, track_titles, wav_filenames, num_tracks, new_wav_cond);
+        rip_tracks_from_disc_thread(ripping_progress_bar, track_count, disc_title, disc_artist, tracks_to_rip, track_titles, num_tracks, wav_list, wav_list_mutex, new_wav_cond);
+        encode_tracks_thread(encoding_progress_bar, num_tracks, wav_list, wav_list_mutex, new_wav_cond);
     }
 }
