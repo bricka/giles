@@ -107,7 +107,7 @@ static void *encode_tracks_thread_func(void *data) {
         char *mp3_filename;
         pid_t child_pid;
 
-        asprintf(&mp3_filename, mp3_filename_format, encode_me->artist, encode_me->album, encode_me->track_num, encode_me->track_title);
+        asprintf(&mp3_filename, mp3_filename_format, replace_all(encode_me->artist, '/', '-'), replace_all(encode_me->album, '/', '-'), replace_all(encode_me->track_num, '/', '-'), replace_all(encode_me->track_title, '/', '-'));
 
         dirname_str = strdup(mp3_filename);
         dirname(dirname_str);

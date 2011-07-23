@@ -129,7 +129,7 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
         pid_t child_pid;
 
         asprintf(&track_num_str, track_num_str_format, track_num);
-        asprintf(&wav_filename, wav_filename_format, artist, disc_title, track_num_str, track_titles[i]);
+        asprintf(&wav_filename, wav_filename_format, replace_all(artist, '/', '-'), replace_all(disc_title, '/', '-'), replace_all(track_num_str, '/', '-'), replace_all(track_titles[i], '/', '-'));
 
         dirname_str = strdup(wav_filename);
         dirname(dirname_str);
