@@ -8,6 +8,7 @@
 
 #include "giles.h"
 #include "encode.h"
+#include "misc.h"
 
 #define directory "~/music/test"
 
@@ -67,19 +68,20 @@ static void *encode_tracks_thread_func(void *data) {
     pthread_cond_t *new_wav_cond = args->new_wav_cond;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
-    char *mp3_filename_format;
+    char mp3_filename_format[PATH_MAX];
+    char mp3_filename[PATH_MAX];
 
-    char *expanded_directory;
+    char expanded_directory[PATH_MAX];
 
     if ((directory[0] == '~') && (directory[1] == '/')) {
-        asprintf(&expanded_directory, "%s/%s", getenv("HOME"), directory + 1);
+        snprintf(expanded_directory, PATH_MAX, "%s/%s", getenv("HOME"), directory + 1);
     } else {
-        expanded_directory = directory;
+        strcpy(expanded_directory, directory);
     }
 
     int i;
 
-    asprintf(&mp3_filename_format, "%s/%%s/%%s/%%s - %%s.mp3", expanded_directory);
+    snprintf(mp3_filename_format, PATH_MAX, "%s/%%s/%%s/%%s - %%s.mp3", expanded_directory);
 
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
     snprintf(progress_bar_text, BUFSIZ, "0 of %d tracks encoded", num_tracks);
@@ -103,11 +105,15 @@ static void *encode_tracks_thread_func(void *data) {
             break;
         }
 
+        char *artist_no_slash = replace_all(encode_me->artist, '/', '-');
+        char *album_no_slash = replace_all(encode_me->album, '/', '-');
+        char *track_num_no_slash = replace_all(encode_me->track_num, '/', '-');
+        char *track_title_no_slash = replace_all(encode_me->track_title, '/', '-');
+
         char *dirname_str;
-        char *mp3_filename;
         pid_t child_pid;
 
-        asprintf(&mp3_filename, mp3_filename_format, replace_all(encode_me->artist, '/', '-'), replace_all(encode_me->album, '/', '-'), replace_all(encode_me->track_num, '/', '-'), replace_all(encode_me->track_title, '/', '-'));
+        snprintf(mp3_filename, PATH_MAX, mp3_filename_format, artist_no_slash, album_no_slash, track_num_no_slash, track_title_no_slash);
 
         dirname_str = strdup(mp3_filename);
         dirname(dirname_str);
@@ -132,11 +138,12 @@ static void *encode_tracks_thread_func(void *data) {
         snprintf(progress_bar_text, BUFSIZ, "%d of %d tracks encoded", i+1, num_tracks);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
-        free(mp3_filename);
         free(encode_me);
+        free(artist_no_slash);
+        free(album_no_slash);
+        free(track_num_no_slash);
+        free(track_title_no_slash);
     }
-
-    free(mp3_filename_format);
 
     return NULL;
 }

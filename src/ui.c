@@ -65,7 +65,7 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
               *track_info_grid, *track_title_label, *button_box, *rip_button;
     int i, track_count, track_count_width;
     cddb_track_t *track;
-    char *track_title_label_text_format;
+    char track_title_label_text_format[16];
     char *track_title_label_text;
     const char *track_title;
 
@@ -124,7 +124,7 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
         track_count_width = 3;
     }
 
-    asprintf(&track_title_label_text_format, "Track %%%dd:", track_count_width);
+    snprintf(track_title_label_text_format, 16, "Track %%%dd:", track_count_width);
 
     track_title_entries = malloc(track_count * sizeof(GtkWidget *));
     track_do_rip_check_buttons = malloc(track_count * sizeof(GtkWidget *));
@@ -145,8 +145,6 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
         track_do_rip_check_buttons[i] = gtk_check_button_new();
         gtk_grid_attach_next_to(GTK_GRID(track_info_grid), track_do_rip_check_buttons[i], track_title_entries[i], GTK_POS_RIGHT, 1, 1);
     }
-
-    free(track_title_label_text_format);
 
     /* buttons at the bottom */
 

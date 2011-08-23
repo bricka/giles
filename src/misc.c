@@ -36,7 +36,7 @@ char *replace_all(const char *str, const char to_replace, const char replace_wit
     char *new_s = malloc(strlen(str) + 1);
     char *s = new_s;
 
-    while (*str++) {
+    while (*str) {
         if (*str == to_replace) {
             *s = replace_with;
         } else {
@@ -44,6 +44,7 @@ char *replace_all(const char *str, const char to_replace, const char replace_wit
         }
 
         s++;
+        str++;
     }
 
     *s = '\0';

@@ -91,11 +91,12 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     pthread_cond_t *new_wav_cond = args->new_wav_cond;
     double frac_completed = 0.0;
     char *progress_bar_text = malloc(BUFSIZ);
-    char *track_num_str_format;
-    char *wav_filename_format;
+    char track_num_str_format[64];
+    char wav_filename_format[PATH_MAX];
+    char wav_filename[PATH_MAX];
 
     int track_count_width = 0;
-    char *expanded_directory;
+    char expanded_directory[PATH_MAX];
 
     int i;
 
@@ -108,28 +109,33 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
     }
 
     if ((directory[0] == '~') && (directory[1] == '/')) {
-        asprintf(&expanded_directory, "%s/%s", getenv("HOME"), directory + 1);
+        snprintf(expanded_directory, PATH_MAX, "%s/%s", getenv("HOME"), directory + 1);
     } else {
-        expanded_directory = directory;
+        strcpy(expanded_directory, directory);
     }
 
-    asprintf(&track_num_str_format, "%%0%dd", track_count_width);
+    snprintf(track_num_str_format, 64, "%%0%dd", track_count_width);
 
-    asprintf(&wav_filename_format, "%s/%%s/%%s/%%s - %%s.wav", expanded_directory);
+    snprintf(wav_filename_format, PATH_MAX, "%s/%%s/%%s/%%s - %%s.wav", expanded_directory);
 
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
     snprintf(progress_bar_text, BUFSIZ, "0 of %d tracks ripped", num_tracks);
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar), progress_bar_text);
 
+    char *artist_no_slash = replace_all(artist, '/', '-');
+    char *disc_title_no_slash = replace_all(disc_title, '/', '-');
+
     for (i = 0; i < num_tracks; i++) {
         int track_num = tracks[i] + 1; // 0-indexed in the array
-        char *track_num_str;
+        char track_num_str[64];
         char *dirname_str;
-        char *wav_filename;
         pid_t child_pid;
 
-        asprintf(&track_num_str, track_num_str_format, track_num);
-        asprintf(&wav_filename, wav_filename_format, replace_all(artist, '/', '-'), replace_all(disc_title, '/', '-'), replace_all(track_num_str, '/', '-'), replace_all(track_titles[i], '/', '-'));
+        char *track_num_str_no_slash = replace_all(track_num_str, '/', '-');
+        char *track_title_no_slash = replace_all(track_titles[i], '/', '-');
+
+        snprintf(track_num_str, 64, track_num_str_format, track_num);
+        snprintf(wav_filename, PATH_MAX, wav_filename_format, artist_no_slash, disc_title_no_slash, track_num_str_no_slash, track_title_no_slash);
 
         dirname_str = strdup(wav_filename);
         dirname(dirname_str);
@@ -168,8 +174,8 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
 
         pthread_cond_signal(new_wav_cond);
 
-        free(track_num_str);
-        free(wav_filename);
+        free(track_num_str_no_slash);
+        free(track_title_no_slash);
     }
 
     pthread_mutex_lock(wav_list_mutex);
@@ -181,7 +187,8 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
 
     pthread_cond_signal(new_wav_cond);
 
-    free(wav_filename_format);
+    free(artist_no_slash);
+    free(disc_title_no_slash);
 
     return NULL;
 }
