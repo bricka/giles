@@ -219,7 +219,7 @@ static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
 
         const char **track_titles = malloc(num_tracks * sizeof(char *));
         for (i = 0; i < num_tracks; i++) {
-            track_titles[i] = gtk_entry_get_text(GTK_ENTRY(track_title_entries[i]));
+            track_titles[i] = gtk_entry_get_text(GTK_ENTRY(track_title_entries[tracks_to_rip[i]]));
         }
 
         struct wav_to_encode **wav_list = calloc(num_tracks + 1, sizeof(struct wav_to_encode *));
