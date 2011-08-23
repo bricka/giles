@@ -13,3 +13,6 @@ Makefile.in
 /autom4te.cache/
 /compile
 /src/.deps
+tags
+core
+cscope.out
