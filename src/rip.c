@@ -127,14 +127,14 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
 
     for (i = 0; i < num_tracks; i++) {
         int track_num = tracks[i] + 1; // 0-indexed in the array
-        char track_num_str[64];
+        char track_num_str[16];
         char *dirname_str;
         pid_t child_pid;
 
+        snprintf(track_num_str, 16,track_num_str_format, track_num);
         char *track_num_str_no_slash = replace_all(track_num_str, '/', '-');
         char *track_title_no_slash = replace_all(track_titles[i], '/', '-');
 
-        snprintf(track_num_str, 64, track_num_str_format, track_num);
         snprintf(wav_filename, PATH_MAX, wav_filename_format, artist_no_slash, disc_title_no_slash, track_num_str_no_slash, track_title_no_slash);
 
         dirname_str = strdup(wav_filename);

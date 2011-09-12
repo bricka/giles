@@ -10,7 +10,7 @@ struct wav_to_encode {
     char wav_filename[PATH_MAX];
     char artist[BUFSIZ];
     char album[BUFSIZ];
-    char track_num[5];
+    char track_num[16];
     char track_title[BUFSIZ];
 };
 
