@@ -144,6 +144,7 @@ void ui_show_disc_info(const cddb_disc_t *disc) {
 
         track_do_rip_check_buttons[i] = gtk_check_button_new();
         gtk_grid_attach_next_to(GTK_GRID(track_info_grid), track_do_rip_check_buttons[i], track_title_entries[i], GTK_POS_RIGHT, 1, 1);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(track_do_rip_check_buttons[i]), 1);
     }
 
     /* buttons at the bottom */
