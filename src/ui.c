@@ -185,7 +185,7 @@ static void handle_rip_button_clicked(GtkButton *button, cddb_disc_t *disc) {
     int num_tracks = 0;
     int i;
 
-    ripping_progress_dialog = gtk_dialog_new_with_buttons("Ripping CD", GTK_WINDOW(disc_info_window), GTK_DIALOG_MODAL, GTK_STOCK_CANCEL, NULL);
+    ripping_progress_dialog = gtk_dialog_new_with_buttons("Ripping CD", GTK_WINDOW(disc_info_window), GTK_DIALOG_MODAL, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
 
     content_area = gtk_dialog_get_content_area(GTK_DIALOG(ripping_progress_dialog));
 
