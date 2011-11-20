@@ -6,6 +6,8 @@
 #include "ui.h"
 #include "cddb.h"
 
+char *device_name;
+
 int main(int argc, char **argv) {
     gtk_init(&argc, &argv);
     g_thread_init(NULL);
@@ -15,6 +17,8 @@ int main(int argc, char **argv) {
 #endif
 
     CdIo_t *p_cdio = cdio_open(NULL, DRIVER_DEVICE);
+
+    device_name = cdio_get_default_device(p_cdio);
 
     if (p_cdio == NULL) {
         fputs("Unable to read the CD drive!\n", stderr);

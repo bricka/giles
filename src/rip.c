@@ -147,7 +147,7 @@ static void *rip_tracks_from_disc_thread_func(void *data) {
             perror("giles: Failed to fork to execute cdparanoia");
             return NULL;
         } else if (child_pid == 0) {
-            execlp("cdparanoia", "cdparanoia", track_num_str, wav_filename, NULL);
+            execlp("cdparanoia", "cdparanoia", "-d", device_name, track_num_str, wav_filename, NULL);
             perror("giles: Failed to execute cdparanoia");
             return NULL;
         } else {
