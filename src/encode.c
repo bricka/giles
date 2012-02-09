@@ -1,13 +1,14 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/wait.h>
-#include <string.h>
+#include <errno.h>
 #include <libgen.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#include "giles.h"
 #include "encode.h"
+#include "giles.h"
 #include "misc.h"
 
 #define directory "~/music/test"
@@ -132,6 +133,12 @@ static void *encode_tracks_thread_func(void *data) {
             waitpid(child_pid, NULL, 0);
         }
 
+        /* Delete the source WAV file */
+        if (unlink(encode_me->wav_filename) != 0) {
+            fprintf(stderr, "giles: Failed to delete source file %s: %s\n", encode_me->wav_filename, strerror(errno));
+        }
+
+        /* Update progress */
         frac_completed = (double) (i+1) / (double) num_tracks;
         DPRINTF ("Fraction of work completed: %f\n", frac_completed);
         gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress_bar), frac_completed);
