@@ -10,7 +10,6 @@ char *device_name;
 
 int main(int argc, char **argv) {
     gtk_init(&argc, &argv);
-    g_thread_init(NULL);
 
 #ifdef LIB_DEBUG
     cddb_log_set_level(CDDB_LOG_DEBUG);
